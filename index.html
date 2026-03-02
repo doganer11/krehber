@@ -9,8 +9,7 @@
     
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script> <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
@@ -72,11 +71,12 @@
                 <img src="https://www.ilbank.gov.tr/assets/ccc/media/logos/ilbank_logo.svg" alt="Logo" class="w-full h-full object-contain">
             </div>
             <h2 class="text-2xl font-bold text-slate-800">Kurumsal Rehber</h2>
-            <p class="text-slate-400 text-sm mt-2">Lütfen devam etmek için şifreyi girin</p>
+            <p class="text-slate-400 text-sm mt-2">Firebase Yetkili Girişi</p>
         </div>
-        <input type="password" id="passInput" placeholder="Şifre" class="w-full p-5 bg-slate-100 rounded-2xl outline-none mb-6 text-center font-bold tracking-widest border-2 border-transparent focus:border-indigo-500 transition text-lg">
-        <button onclick="app.checkPassword()" class="w-full bg-indigo-600 text-white py-5 rounded-2xl font-bold hover:bg-indigo-700 transition shadow-lg text-lg">Giriş Yap</button>
-        <p id="loginError" class="text-red-500 text-xs mt-4 font-bold hidden italic text-center">Hatalı şifre veya yetkisiz erişim.</p>
+        <input type="email" id="emailInput" value="admin@rehber.com" class="w-full p-4 bg-slate-100 rounded-2xl outline-none mb-3 font-semibold border-2 border-transparent focus:border-indigo-500 transition text-sm">
+        <input type="password" id="passInput" placeholder="Şifre" class="w-full p-4 bg-slate-100 rounded-2xl outline-none mb-6 font-semibold border-2 border-transparent focus:border-indigo-500 transition text-sm">
+        <button onclick="app.checkPassword()" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold hover:bg-indigo-700 transition shadow-lg text-lg">Güvenli Giriş</button>
+        <p id="loginError" class="text-red-500 text-xs mt-4 font-bold hidden italic text-center">E-posta veya şifre hatalı.</p>
     </div>
 </div>
 
@@ -118,6 +118,8 @@
                         <div class="bg-white border rounded-2xl shadow-xl p-2 ring-4 ring-black/5">
                             <button onclick="document.getElementById('excelInput').click()" class="w-full text-left px-4 py-3 text-sm hover:bg-slate-50 rounded-xl flex items-center gap-3"><i class="fa-solid fa-file-excel text-green-600 w-5"></i> Excel Yükle</button>
                             <button onclick="document.getElementById('vcfInput').click()" class="w-full text-left px-4 py-3 text-sm hover:bg-slate-50 rounded-xl flex items-center gap-3"><i class="fa-solid fa-address-book text-orange-500 w-5"></i> vCard Yükle</button>
+                            <button onclick="document.getElementById('backupInput').click()" class="w-full text-left px-4 py-3 text-sm hover:bg-slate-50 rounded-xl flex items-center gap-3"><i class="fa-solid fa-file-import text-indigo-500 w-5"></i> Yedek Yükle</button>
+                            <hr class="my-1 border-slate-100">
                             <button onclick="app.exportExcel()" class="w-full text-left px-4 py-3 text-sm hover:bg-slate-50 rounded-xl flex items-center gap-3"><i class="fa-solid fa-file-export text-green-700 w-5"></i> Excel İndir</button>
                             <button onclick="app.exportVCF()" class="w-full text-left px-4 py-3 text-sm hover:bg-slate-50 rounded-xl flex items-center gap-3"><i class="fa-solid fa-address-card text-orange-600 w-5"></i> vCard İndir</button>
                             <button onclick="app.exportBackup()" class="w-full text-left px-4 py-3 text-sm hover:bg-indigo-50 rounded-xl flex items-center gap-3 font-bold text-indigo-700"><i class="fa-solid fa-database w-5"></i> Tam Yedek Al</button>
@@ -133,6 +135,7 @@
 
     <input type="file" id="excelInput" hidden onchange="app.importExcel(event)" accept=".xlsx, .xls">
     <input type="file" id="vcfInput" hidden onchange="app.importVCF(event)" accept=".vcf">
+    <input type="file" id="backupInput" hidden onchange="app.importBackup(event)" accept=".json">
 
     <main class="flex-1 flex overflow-hidden flex-col lg:flex-row">
         <aside class="w-72 bg-white border-r p-6 hidden lg:flex flex-col gap-5 overflow-y-auto">
@@ -164,7 +167,7 @@
 </div>
 
 <script>
-// --- SİZE ÖZEL FIREBASE VE AUTH BİLGİLERİ ---
+// --- FIREBASE API BİLGİLERİ ---
 const firebaseConfig = {
   apiKey: "AIzaSyCCU_KZER6fYT2Weq3m3zyt_h3_jDl-0PA",
   authDomain: "krehber-eb2e9.firebaseapp.com",
@@ -175,40 +178,50 @@ const firebaseConfig = {
   appId: "1:598268438084:web:4c834cb16febb2e362fe11"
 };
 
-const ADMIN_EMAIL = "krehberilbank@gmail.com"; // Authentication sayfasında oluşturduğunuz mail
-
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-const auth = firebase.auth();
+const auth = firebase.auth(); // Auth nesnesi tanımlandı
 
 class BulutRehber {
     constructor() {
         this.contacts = []; this.categories = []; this.selectedIds = new Set();
         this.currentCategory = 'Tümü'; this.view = 'grid'; this.currentPhoto = null;
         this.sortDirection = 'asc'; this.init();
-        document.getElementById('passInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') this.checkPassword(); });
     }
 
+    // --- GERÇEK LOGİN MEKANİZMASI ---
     init() {
+        // Oturum durumunu dinle
         auth.onAuthStateChanged(user => {
-            if (user) { this.showApp(); } 
-            else { 
-                document.getElementById('loginScreen').style.display = 'flex';
-                document.getElementById('mainApp').style.display = 'none';
+            if (user) {
+                this.showApp();
+            } else {
+                this.hideApp();
             }
+        });
+        
+        document.getElementById('passInput').addEventListener('keypress', (e) => { 
+            if (e.key === 'Enter') this.checkPassword(); 
         });
     }
 
     checkPassword() {
-        const password = document.getElementById('passInput').value;
-        if (!password) return;
-        auth.signInWithEmailAndPassword(ADMIN_EMAIL, password).catch(() => {
-            document.getElementById('loginError').classList.remove('hidden');
-            document.getElementById('passInput').value = "";
-        });
+        const email = document.getElementById('emailInput').value;
+        const pass = document.getElementById('passInput').value;
+        const errorMsg = document.getElementById('loginError');
+
+        auth.signInWithEmailAndPassword(email, pass)
+            .catch(error => {
+                errorMsg.classList.remove('hidden');
+                errorMsg.innerText = "Giriş Hatası: " + error.message;
+            });
     }
 
-    logout() { auth.signOut().then(() => location.reload()); }
+    logout() { 
+        auth.signOut().then(() => {
+            location.reload();
+        });
+    }
 
     showApp() {
         document.getElementById('loginScreen').style.display = 'none';
@@ -216,6 +229,12 @@ class BulutRehber {
         this.loadFirebase();
     }
 
+    hideApp() {
+        document.getElementById('loginScreen').style.display = 'flex';
+        document.getElementById('mainApp').style.display = 'none';
+    }
+
+    // --- VERİ YÜKLEME VE DİĞER FONKSİYONLAR ---
     loadFirebase() {
         db.ref("categories").on("value", s => {
             const d = s.val();
@@ -230,7 +249,7 @@ class BulutRehber {
             document.getElementById('statText').innerText = `${this.contacts.length} Kayıt`;
         });
         document.getElementById('contactForm').onsubmit = e => { e.preventDefault(); this.save(); };
-        window.onclick = () => { document.getElementById('opsDropdown').classList.remove('show'); };
+        window.addEventListener('click', () => { document.getElementById('opsDropdown').classList.remove('show'); });
     }
 
     async deleteCurrentCategoryContacts() {
@@ -254,7 +273,7 @@ class BulutRehber {
         this.contacts.sort((a, b) => {
             const nameA = (a.ad + " " + (a.soyad || "")).toLocaleLowerCase('tr-TR');
             const nameB = (b.ad + " " + (b.soyad || "")).toLocaleLowerCase('tr-TR');
-            return this.sortDirection === 'asc' ? nameA.compare(nameB, 'tr') : nameB.compare(nameA, 'tr');
+            return this.sortDirection === 'asc' ? nameA.localeCompare(nameB, 'tr') : nameB.localeCompare(nameA, 'tr');
         });
     }
 
@@ -282,7 +301,7 @@ class BulutRehber {
                 const batch = {};
                 json.forEach((row, idx) => {
                     const nid = db.ref().child('contacts').push().key;
-                    batch[nid] = { ad: getVal(row, ['ad', 'isim', 'name']) || "İsimsiz", soyad: getVal(row, ['soyad', 'surname']) || "", tel1: getVal(row, ['tel1', 'telefon', 'phone']), tel2: getVal(row, ['tel2', 'sabit']), unvan: getVal(row, ['unvan', 'title']), email: getVal(row, ['email', 'mail']), notlar: getVal(row, ['notlar', 'not']), kategori: getVal(row, ['kategori']) || "Genel" };
+                    batch[nid] = { ad: getVal(row, ['ad', 'isim', 'first name', 'name']) || "İsimsiz", soyad: getVal(row, ['soyad', 'surname', 'last name']) || "", tel1: getVal(row, ['tel1', 'telefon', 'phone', 'cep', 'cep no']), tel2: getVal(row, ['tel2', 'sabit', 'sabit no', 'ev']), tel3: getVal(row, ['tel3', 'diğer', 'diger']), unvan: getVal(row, ['unvan', 'title', 'pozisyon', 'iş ünvanı', 'is unvani']), email: getVal(row, ['email', 'e-posta', 'eposta', 'mail']), notlar: getVal(row, ['notlar', 'not', 'note']), kategori: getVal(row, ['kategori', 'category']) || "Genel" };
                     this.updateProgress(((idx+1)/json.length)*100);
                 });
                 await db.ref("contacts").update(batch);
@@ -306,11 +325,34 @@ class BulutRehber {
                 const fn = getVCFValue("FN") || "Yeni Kayıt";
                 const telMatches = [...card.matchAll(/TEL(?:;.*)?:(.*)/gi)].map(m => m[1].replace(/[-() ]/g, '').trim());
                 const nid = db.ref().child('contacts').push().key; 
-                batch[nid] = { ad: fn.split(' ')[0], soyad: fn.split(' ').slice(1).join(' '), tel1: telMatches[0] || "", tel2: telMatches[1] || "", kategori: getVCFValue("CATEGORIES") || "Genel", unvan: getVCFValue("TITLE") || getVCFValue("ORG"), email: getVCFValue("EMAIL"), notlar: getVCFValue("NOTE") }; 
+                batch[nid] = { ad: fn.split(' ')[0], soyad: fn.split(' ').slice(1).join(' '), tel1: telMatches[0] || "", tel2: telMatches[1] || "", tel3: telMatches[2] || "", kategori: getVCFValue("CATEGORIES") || "Genel", unvan: getVCFValue("TITLE") || getVCFValue("ORG"), email: getVCFValue("EMAIL"), notlar: getVCFValue("NOTE") }; 
                 this.updateProgress(((idx+1)/cards.length)*100); 
             });
             await db.ref("contacts").update(batch);
             this.showToast("vCard Aktarıldı", "#10b981"); e.target.value = "";
+        }; reader.readAsText(file);
+    }
+
+    async importBackup(e) {
+        const file = e.target.files[0]; if(!file) return;
+        const reader = new FileReader();
+        reader.onload = async (ev) => {
+            try {
+                const data = JSON.parse(ev.target.result);
+                if(!data.contacts || !Array.isArray(data.contacts)) throw new Error("Geçersiz yedek!");
+                if(confirm(`${data.contacts.length} kayıt sisteme yüklenecek. Onaylıyor musunuz?`)){
+                    const batch = {};
+                    data.contacts.forEach((c, idx) => {
+                        const nid = db.ref().child('contacts').push().key;
+                        const {id, ...pureData} = c;
+                        batch[nid] = pureData;
+                        this.updateProgress(((idx+1)/data.contacts.length)*100);
+                    });
+                    await db.ref("contacts").update(batch);
+                    this.showToast("Yedek Yüklendi", "#10b981");
+                }
+            } catch (err) { this.showToast("Hata!", "#ef4444"); }
+            e.target.value = "";
         }; reader.readAsText(file);
     }
 
@@ -328,6 +370,7 @@ class BulutRehber {
             item.onclick = (e) => { if(e.target.type !== 'checkbox' && !e.target.closest('button')) this.edit(c.id); };
             const fullInfo = `
                 ${c.tel1 ? `<div class="info-row"><i class="fa-solid fa-mobile-screen text-indigo-400 w-4"></i>${c.tel1}</div>` : ''}
+                ${c.tel2 ? `<div class="info-row"><i class="fa-solid fa-phone text-indigo-400 w-4"></i>${c.tel2}</div>` : ''}
                 ${c.email ? `<div class="info-row"><i class="fa-solid fa-envelope text-indigo-400 w-4"></i>${c.email}</div>` : ''}
                 ${c.notlar ? `<div class="card-not-area">${c.notlar}</div>` : ''}
             `;
@@ -381,7 +424,7 @@ class BulutRehber {
     search(q) { 
         const term = q.trim().toLocaleLowerCase('tr-TR');
         if (!term) { this.render(); return; }
-        const filtered = this.contacts.filter(c => [c.ad, c.soyad, c.tel1, c.unvan, c.notlar, c.email, c.kategori].map(v => (v || "").toLocaleLowerCase('tr-TR')).join(' ').includes(term));
+        const filtered = this.contacts.filter(c => [c.ad, c.soyad, c.tel1, c.tel2, c.tel3, c.unvan, c.notlar, c.email, c.kategori].map(v => (v || "").toLocaleLowerCase('tr-TR')).join(' ').includes(term));
         this.render(filtered); 
     }
 
@@ -437,7 +480,7 @@ class BulutRehber {
             if(c.tel1) vcf += `TEL;TYPE=CELL:${c.tel1}\n`;
             if(c.unvan) vcf += `TITLE;CHARSET=UTF-8:${c.unvan}\n`;
             if(c.kategori) vcf += `CATEGORIES;CHARSET=UTF-8:${c.kategori}\n`;
-            if(c.notlar) vcf += `NOTE;CHARSET=UTF-8:${c.notlar.replace(/\n/g, '\\n')}\n`;
+            if(c.notlar) vcf += `NOTE;CHARSET=UTF-8:${c.notlar.replace(/\n/g, '\\n')}\n`; 
             vcf += `END:VCARD\n`;
         });
         const blob = new Blob([vcf], {type: "text/vcard;charset=utf-8"});
